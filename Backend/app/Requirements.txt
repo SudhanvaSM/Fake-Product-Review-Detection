@@ -5,3 +5,5 @@ transformers
 torch
 pillow
 pytesseract
+google-generativeai
+python-dotenv

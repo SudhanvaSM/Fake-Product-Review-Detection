@@ -11,3 +11,5 @@ class AnalysisResponse(BaseModel):
     confidence: int
     signals: Dict[str, object]
     reasons: List[str]
+    product_summary: Optional[str] = None
+    suggested_rating: Optional[str] = None

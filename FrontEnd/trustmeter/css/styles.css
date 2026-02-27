@@ -533,6 +533,116 @@ a {
   font-size: var(--fs-base);
 }
 
+/* Auth Input Container */
+.auth-input-container {
+  width: 100%;
+  max-width: 640px;
+  animation: fadeInUp 0.6s 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.auth-section {
+  margin-bottom: var(--space-xl);
+}
+
+.auth-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.required-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: #fff;
+  background: var(--gradient-card-1);
+  border-radius: var(--radius-full);
+  letter-spacing: 0.03em;
+}
+
+/* Textarea Footer */
+.textarea-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-sm);
+  min-height: 20px;
+}
+
+.validation-msg {
+  font-size: var(--fs-xs);
+  color: var(--score-red);
+  font-weight: 500;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  pointer-events: none;
+}
+
+.validation-msg.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.char-counter {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.rv-textarea.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Section Divider */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin: var(--space-xl) 0;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.divider-text {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Analyze Button — Inline Spinner Variant */
+.analyze-btn {
+  position: relative;
+}
+
+.analyze-btn.loading .analyze-icon,
+.analyze-btn.loading .analyze-label {
+  opacity: 0;
+}
+
+.btn-spinner {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-header p {
+  color: var(--text-secondary);
+  font-size: var(--fs-base);
+}
+
 /* Upload Section */
 .upload-section {
   width: 100%;
@@ -608,7 +718,8 @@ a {
   color: var(--text-muted);
 }
 
-#file-input {
+#file-input,
+#auth-file-input {
   display: none;
 }
 

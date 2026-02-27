@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from schemas import ReviewRequest, AnalysisResponse
-from analyzer import analyze_review
+from .schemas import ReviewRequest, AnalysisResponse
+from .analyzer import analyze_review
 
 app = FastAPI(
     title="Fake Product Review Detection API",

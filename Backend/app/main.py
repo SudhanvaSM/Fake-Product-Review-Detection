@@ -25,13 +25,13 @@ def health_check():
 
 # ===== Review Authenticator Endpoint =====
 @app.post("/analyze", response_model=AuthenticatorResponse)
-async def analyze_review(image: UploadFile = File(...)):
+async def analyze_review(image: UploadFile = File(...), review_text: str = Form(None)):
     """Analyze a review image for authenticity."""
     try:
         # Read image file
         image_data = await image.read()
         
-        result = analyze_review_authenticity(image_data)
+        result = analyze_review_authenticity(image_data, review_text)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

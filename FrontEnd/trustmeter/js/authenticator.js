@@ -134,9 +134,9 @@ analyzeBtn.addEventListener('click', async () => {
     try {
         // Make API call
         const formData = new FormData();
+        formData.append('review_text', reviewText);
         
         if (reviewImage) {
-            // Send actual image
             formData.append('image', reviewImage);
         } else {
             // Create text-based image from review
@@ -172,8 +172,8 @@ analyzeBtn.addEventListener('click', async () => {
         const result = await response.json();
         console.log('API Response:', result);
         
-        // Show alert with results
-        alert(`Trust Score: ${result.trustScore}%\nVerdict: ${result.verdict}\nSummary: ${result.summary}`);
+        // Display results in styled section
+        displayResults(result);
     } catch (err) {
         console.error('API Error:', err);
         alert('Failed to analyze: ' + err.message);
@@ -190,3 +190,60 @@ analyzeBtn.addEventListener('click', async () => {
         updateButtonState();
     }
 });
+
+// Display results function
+function displayResults(result) {
+    // Create results section if it doesn't exist
+    let resultsSection = document.getElementById('auth-results-section');
+    if (!resultsSection) {
+        resultsSection = document.createElement('div');
+        resultsSection.id = 'auth-results-section';
+        resultsSection.className = 'auth-results-section';
+        document.querySelector('.auth-page').appendChild(resultsSection);
+    }
+    
+    // Determine color based on trust score
+    let scoreClass = 'high';
+    if (result.trustScore < 25) scoreClass = 'critical';
+    else if (result.trustScore < 50) scoreClass = 'medium';
+    else if (result.trustScore < 75) scoreClass = 'good';
+    
+    resultsSection.innerHTML = `
+        <div class="results-header">
+            <h2>Analysis Results</h2>
+        </div>
+        
+        <div class="results-grid">
+            <div class="results-card score-card ${scoreClass}">
+                <h3>Trust Score</h3>
+                <div class="score-display">${result.trustScore}%</div>
+                <div class="score-bar">
+                    <div class="score-bar-fill" style="width: ${result.trustScore}%;"></div>
+                </div>
+            </div>
+            
+            <div class="results-card verdict-card">
+                <h3>Verdict</h3>
+                <div class="verdict-badge ${result.isFake ? 'fake' : 'genuine'}">
+                    ${result.verdict}
+                </div>
+            </div>
+        </div>
+        
+        <div class="results-card summary-card">
+            <h3>Analysis Summary</h3>
+            <p>${result.summary}</p>
+        </div>
+        
+        ${result.flaggedKeywords.length > 0 ? `
+            <div class="results-card keywords-card">
+                <h3>Flagged Keywords</h3>
+                <div class="keywords-list">
+                    ${result.flaggedKeywords.map(kw => `<span class="keyword-chip">${kw}</span>`).join('')}
+                </div>
+            </div>
+        ` : ''}
+    `;
+    
+    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}

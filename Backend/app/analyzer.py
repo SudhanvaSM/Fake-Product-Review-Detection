@@ -27,58 +27,62 @@ def _extract_text_from_image(image_data: bytes) -> str:
         return f"Error extracting text: {str(e)}"
 
 def _analyze_review_text_authenticity(review_text: str) -> Tuple[int, str, bool, List[str]]:
-    """Analyze text for fake review indicators."""
-    risk_score = 0
+    """Analyze text for fake review using HuggingFace AI models."""
     flagged_keywords = []
     
-    # 1. Sentiment analysis
+    # 1. MAIN: Zero-shot classification for authenticity using HuggingFace
+    authenticity_labels = ["genuine review", "fake review", "spam review"]
+    authenticity_result = _zero_shot_classifier(review_text[:512], authenticity_labels)
+    
+    # Get scores for each label
+    scores = dict(zip(authenticity_result["labels"], authenticity_result["scores"]))
+    fake_score = scores.get("fake review", 0)
+    genuine_score = scores.get("genuine review", 0)
+    spam_score = scores.get("spam review", 0)
+    
+    # Convert to 0-100 scale
+    trust_score = int(genuine_score * 100)
+    fake_confidence = int(fake_score * 100)
+    
+    # Mark as fake if HuggingFace says so with high confidence
+    is_fake = fake_score > genuine_score or fake_score > 0.4
+    
+    if is_fake:
+        flagged_keywords.append(f"HF-fake-confidence-{fake_confidence}")
+    
+    # 2. Sentiment analysis
     sentiment_result = _text_classifier(review_text[:512])[0]
     is_positive = sentiment_result["label"] == "POSITIVE"
     sentiment_confidence = sentiment_result["score"]
     
-    # 2. Zero-shot classification for authenticity
-    authenticity_labels = ["genuine review", "fake review", "spam review"]
-    authenticity_result = _zero_shot_classifier(review_text[:512], authenticity_labels)
-    top_label = authenticity_result["labels"][0]
+    if sentiment_confidence > 0.9:
+        flagged_keywords.append("extreme_positive_sentiment")
     
-    if top_label in ["fake review", "spam review"]:
-        risk_score += 45
-        flagged_keywords.append(top_label.replace(" ", "_"))
+    # 3. Spam score
+    if spam_score > 0.3:
+        flagged_keywords.append("spam_detected")
+        trust_score = max(0, trust_score - 30)
     
-    # 3. Detect generic promotional phrases
-    promotional_phrases = ["best product", "highly recommend", "must buy", "life changing", 
-                          "amazing", "perfect", "excellent", "five stars", "love it", "perfect product"]
-    found_promo = [p for p in promotional_phrases if p.lower() in review_text.lower()]
-    if found_promo:
-        risk_score += 20
-        flagged_keywords.extend(found_promo)
-    
-    # 4. Detect repetition
+    # 4. Adjust based on text length
     words = review_text.lower().split()
-    if len(words) > 0:
-        unique_ratio = len(set(words)) / len(words)
-        if unique_ratio < 0.6:
-            risk_score += 15
-            flagged_keywords.append("high_repetition")
+    if len(words) < 10:
+        flagged_keywords.append("very_short_review")
+        trust_score = max(0, trust_score - 20)
     
-    # 5. Short reviews with extreme positivity
-    if len(words) < 15 and sentiment_confidence > 0.85:
-        risk_score += 15
-        flagged_keywords.append("short_extreme_positive")
-    
-    trust_score = max(0, 100 - risk_score)
-    is_fake = risk_score > 50
     verdict = "Likely Fake" if is_fake else "Likely Genuine"
     
     return trust_score, verdict, is_fake, flagged_keywords
 
-def analyze_review_authenticity(image_data: bytes) -> Dict:
+def analyze_review_authenticity(image_data: bytes, review_text: Optional[str] = None) -> Dict:
     """Main function to analyze review image for authenticity."""
     try:
-        # Extract text from image
-        review_text = _extract_text_from_image(image_data)
+        # If review text is provided directly, use it; otherwise try to extract from image
+        if review_text and review_text.strip():
+            extracted_text = review_text.strip()
+        else:
+            extracted_text = _extract_text_from_image(image_data)
         
-        if "Error" in review_text or "No text" in review_text:
+        if "Error" in extracted_text or "No text" in extracted_text:
             return {
                 "trustScore": 50,
                 "verdict": "Unable to Analyze",
@@ -88,10 +92,10 @@ def analyze_review_authenticity(image_data: bytes) -> Dict:
             }
         
         # Analyze text
-        trust_score, verdict, is_fake, keywords = _analyze_review_text_authenticity(review_text)
+        trust_score, verdict, is_fake, keywords = _analyze_review_text_authenticity(extracted_text)
         
         # Generate summary using Gemini
-        summary = _generate_authenticity_summary(review_text, is_fake, keywords)
+        summary = _generate_authenticity_summary(extracted_text, is_fake, keywords)
         
         return {
             "trustScore": trust_score,
@@ -110,26 +114,38 @@ def analyze_review_authenticity(image_data: bytes) -> Dict:
         }
 
 def _generate_authenticity_summary(review_text: str, is_fake: bool, keywords: List[str]) -> str:
-    """Generate a summary of the authenticity analysis."""
+    """Generate a detailed summary of authenticity analysis using Gemini AI."""
     try:
         if not GEMINI_API_KEY:
             if is_fake:
-                return "This review exhibits suspicious patterns including promotional language, generic praise, or repetitive text commonly associated with inauthentic content."
+                return "AI analysis detected this review as likely fake based on language patterns and authenticity modeling."
             else:
-                return "This review demonstrates authentic characteristics with specific product references and natural language patterns consistent with genuine customer feedback."
+                return "AI analysis indicates this review demonstrates authentic characteristics based on HuggingFace models."
         
         model = genai.GenerativeModel("gemini-pro")
-        prompt = f"""Based on this product review, generate a brief authenticity analysis (1-2 sentences).
-Review text: {review_text[:500]}
-Flagged issues: {', '.join(keywords) if keywords else 'None'}
-Assessment: {'Likely Fake' if is_fake else 'Likely Genuine'}
+        
+        # Ask Gemini to explain in detail why it's fake or genuine
+        prompt = f"""Analyze this product review and explain in 2-3 sentences whether it's fake or genuine.
 
-Provide a concise summary explaining why this review is authentic or fake."""
+Review: {review_text[:600]}
+
+Based on HuggingFace AI models, this review is classified as: {'FAKE' if is_fake else 'GENUINE'}
+Flagged patterns: {', '.join(keywords) if keywords else 'None detected'}
+
+Provide a clear, concise analysis explaining:
+1. Why AI models classified it as {'fake' if is_fake else 'genuine'}
+2. Key patterns or language characteristics that support this assessment
+3. Specific concerns or positive indicators
+
+Keep response to 2-3 sentences maximum."""
         
         response = model.generate_content(prompt)
-        return response.text if response.text else ("Suspicious review content detected." if is_fake else "Review appears authentic.")
+        return response.text if response.text else ("Suspicious review content detected by AI models." if is_fake else "Review demonstrates authentic patterns based on AI analysis.")
     except Exception as e:
-        return "Unable to generate summary." if not is_fake else "Review shows signs of being potentially fake."
+        if is_fake:
+            return f"HuggingFace models flagged this review as suspicious. Analysis: {keywords}"
+        else:
+            return "Review passed authenticity checks by HuggingFace AI models."
 
 def analyze_product_review(user_requirements: str, spec_text: str, spec_image: Optional[bytes] = None) -> Dict:
     """Analyze product specifications against user requirements."""

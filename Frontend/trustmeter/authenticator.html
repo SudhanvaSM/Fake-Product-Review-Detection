@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Review Authenticity Checker — ReviewShield</title>
+    <meta name="description"
+        content="Upload a review image and let AI analyze its authenticity. Get trust scores, verdicts, and flagged keywords instantly." />
+    <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
+        <a href="index.html" class="navbar-brand">
+            <span class="brand-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2L3 7v6c0 5.25 3.83 10.13 9 11.28C17.17 23.13 21 18.25 21 13V7l-9-5z" />
+                </svg>
+            </span>
+            <span class="brand-text-gradient">ReviewShield</span>
+        </a>
+        <div class="navbar-actions">
+            <a href="index.html" class="nav-back-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Back to Home
+            </a>
+            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+                <span class="toggle-thumb">
+                    <svg class="icon-moon" viewBox="0 0 24 24">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
+                    </svg>
+                    <svg class="icon-sun" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="5" />
+                        <line x1="12" y1="1" x2="12" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="23" />
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                        <line x1="1" y1="12" x2="3" y2="12" />
+                        <line x1="21" y1="12" x2="23" y2="12" />
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                </span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Page Wrapper -->
+    <div class="page-wrapper">
+
+        <!-- Authenticator Page -->
+        <main class="auth-page">
+
+            <!-- Header -->
+            <div class="auth-header">
+                <h1>Review <span class="highlight">Authenticity</span> Checker</h1>
+                <p>Upload a review image and let AI verify its authenticity</p>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="upload-section" id="upload-section">
+
+                <!-- Drop Zone -->
+                <div class="upload-zone" id="upload-zone">
+                    <div class="upload-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                    </div>
+                    <h3>Drag & drop your review image</h3>
+                    <p>or <span class="browse-link" id="browse-link">browse files</span> to upload</p>
+                    <p class="formats">Supported formats: JPG, PNG</p>
+                    <input type="file" id="file-input" accept=".jpg,.jpeg,.png" />
+                </div>
+
+                <!-- Image Preview -->
+                <div class="image-preview" id="image-preview">
+                    <img id="preview-img" src="" alt="Review preview" />
+                    <div class="preview-info">
+                        <span class="file-name" id="file-name">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                            <span id="file-name-text">image.png</span>
+                        </span>
+                        <button class="remove-btn" id="remove-btn">✕ Remove</button>
+                    </div>
+                </div>
+
+                <!-- Analyze Button -->
+                <button class="analyze-btn" id="analyze-btn" disabled>
+                    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    Analyze Review
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="results-section">
+
+                <!-- Trust Score -->
+                <div class="results-card" id="score-card">
+                    <h3>Trust Score</h3>
+                    <div class="trust-score-container">
+                        <div class="score-display" id="score-display">—</div>
+                        <div class="score-bar-track">
+                            <div class="score-bar-fill" id="score-bar-fill"></div>
+                        </div>
+                        <div id="verdict-container"></div>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="results-card" id="summary-card">
+                    <h3>Analysis Summary</h3>
+                    <p class="summary-text" id="summary-text"></p>
+                </div>
+
+                <!-- Flagged Keywords -->
+                <div class="results-card" id="keywords-card">
+                    <h3>Flagged Keywords</h3>
+                    <ul class="keywords-list" id="keywords-list"></ul>
+                </div>
+
+            </div>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            &copy; 2026 ReviewShield. AI-powered review analysis.
+        </footer>
+
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Analyzing review authenticity…</p>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script src="js/authenticator.js"></script>
+</body>
+
+</html>

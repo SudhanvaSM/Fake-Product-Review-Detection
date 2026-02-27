@@ -2,8 +2,8 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
-from .schemas import AuthenticatorResponse, ReviewerResponse
-from .analyzer import analyze_review_authenticity, analyze_product_review
+from schemas import AuthenticatorResponse, ReviewerResponse
+from analyzer import analyze_review_authenticity, analyze_product_review
 
 app = FastAPI(
     title="ReviewShield API",

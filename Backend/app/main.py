@@ -1,11 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
 
-from .schemas import ReviewRequest, AnalysisResponse
-from .analyzer import analyze_review
+from .schemas import AuthenticatorResponse, ReviewerResponse
+from .analyzer import analyze_review_authenticity, analyze_product_review
 
 app = FastAPI(
-    title="Fake Product Review Detection API",
+    title="ReviewShield API",
     version="1.0"
 )
 
@@ -22,13 +23,36 @@ app.add_middleware(
 def health_check():
     return {"status": "API is running"}
 
-@app.post("/analyze", response_model=AnalysisResponse)
-def analyze(request: ReviewRequest):
+# ===== Review Authenticator Endpoint =====
+@app.post("/analyze", response_model=AuthenticatorResponse)
+async def analyze_review(image: UploadFile = File(...)):
+    """Analyze a review image for authenticity."""
     try:
-        result = analyze_review(
-            review_text=request.review_text,
-            rating=request.rating,
-            image_base64=request.image
+        # Read image file
+        image_data = await image.read()
+        
+        result = analyze_review_authenticity(image_data)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ===== Product Reviewer Endpoint =====
+@app.post("/analyze-product", response_model=ReviewerResponse)
+async def analyze_product(
+    userRequirements: str = Form(...),
+    specText: str = Form(...),
+    specImage: Optional[UploadFile] = File(None)
+):
+    """Analyze product specifications against user requirements."""
+    try:
+        spec_image_data = None
+        if specImage:
+            spec_image_data = await specImage.read()
+        
+        result = analyze_product_review(
+            user_requirements=userRequirements,
+            spec_text=specText,
+            spec_image=spec_image_data
         )
         return result
     except Exception as e:

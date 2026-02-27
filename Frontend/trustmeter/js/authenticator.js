@@ -1,5 +1,5 @@
 // ===== Configuration =====
-const API_ENDPOINT = ''; // Set your backend URL here for real integration
+const API_ENDPOINT = 'http://127.0.0.1:8000'; // Set your backend URL here for real integration
 
 // ===== DOM References =====
 const uploadZone = document.getElementById('upload-zone');

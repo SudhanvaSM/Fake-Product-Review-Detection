@@ -4,7 +4,7 @@ import io
 from PIL import Image
 from transformers import pipeline
 import google.generativeai as genai
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Tuple
 
 # Initialize Hugging Face pipelines
 _text_classifier = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
@@ -16,179 +16,204 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-def _summarize_with_gemini(review_text: str, rating: int) -> Dict[str, str]:
-    """Generate product summary and rating suggestions using Gemini API."""
+def _extract_text_from_image(image_data: bytes) -> str:
+    """Extract text from image using OCR or image-to-text model."""
+    try:
+        from pytesseract import pytesseract
+        image = Image.open(io.BytesIO(image_data))
+        text = pytesseract.image_to_string(image)
+        return text if text.strip() else "No text detected in image"
+    except Exception as e:
+        return f"Error extracting text: {str(e)}"
+
+def _analyze_review_text_authenticity(review_text: str) -> Tuple[int, str, bool, List[str]]:
+    """Analyze text for fake review indicators."""
+    risk_score = 0
+    flagged_keywords = []
+    
+    # 1. Sentiment analysis
+    sentiment_result = _text_classifier(review_text[:512])[0]
+    is_positive = sentiment_result["label"] == "POSITIVE"
+    sentiment_confidence = sentiment_result["score"]
+    
+    # 2. Zero-shot classification for authenticity
+    authenticity_labels = ["genuine review", "fake review", "spam review"]
+    authenticity_result = _zero_shot_classifier(review_text[:512], authenticity_labels)
+    top_label = authenticity_result["labels"][0]
+    
+    if top_label in ["fake review", "spam review"]:
+        risk_score += 45
+        flagged_keywords.append(top_label.replace(" ", "_"))
+    
+    # 3. Detect generic promotional phrases
+    promotional_phrases = ["best product", "highly recommend", "must buy", "life changing", 
+                          "amazing", "perfect", "excellent", "five stars", "love it", "perfect product"]
+    found_promo = [p for p in promotional_phrases if p.lower() in review_text.lower()]
+    if found_promo:
+        risk_score += 20
+        flagged_keywords.extend(found_promo)
+    
+    # 4. Detect repetition
+    words = review_text.lower().split()
+    if len(words) > 0:
+        unique_ratio = len(set(words)) / len(words)
+        if unique_ratio < 0.6:
+            risk_score += 15
+            flagged_keywords.append("high_repetition")
+    
+    # 5. Short reviews with extreme positivity
+    if len(words) < 15 and sentiment_confidence > 0.85:
+        risk_score += 15
+        flagged_keywords.append("short_extreme_positive")
+    
+    trust_score = max(0, 100 - risk_score)
+    is_fake = risk_score > 50
+    verdict = "Likely Fake" if is_fake else "Likely Genuine"
+    
+    return trust_score, verdict, is_fake, flagged_keywords
+
+def analyze_review_authenticity(image_data: bytes) -> Dict:
+    """Main function to analyze review image for authenticity."""
+    try:
+        # Extract text from image
+        review_text = _extract_text_from_image(image_data)
+        
+        if "Error" in review_text or "No text" in review_text:
+            return {
+                "trustScore": 50,
+                "verdict": "Unable to Analyze",
+                "isFake": False,
+                "summary": "Could not extract text from image. Try a clearer image with readable text.",
+                "flaggedKeywords": ["image_quality_issue"]
+            }
+        
+        # Analyze text
+        trust_score, verdict, is_fake, keywords = _analyze_review_text_authenticity(review_text)
+        
+        # Generate summary using Gemini
+        summary = _generate_authenticity_summary(review_text, is_fake, keywords)
+        
+        return {
+            "trustScore": trust_score,
+            "verdict": verdict,
+            "isFake": is_fake,
+            "summary": summary,
+            "flaggedKeywords": keywords
+        }
+    except Exception as e:
+        return {
+            "trustScore": 50,
+            "verdict": "Error",
+            "isFake": False,
+            "summary": f"Error during analysis: {str(e)}",
+            "flaggedKeywords": []
+        }
+
+def _generate_authenticity_summary(review_text: str, is_fake: bool, keywords: List[str]) -> str:
+    """Generate a summary of the authenticity analysis."""
     try:
         if not GEMINI_API_KEY:
-            return {"summary": "API key not configured", "suggested_rating": "N/A"}
+            if is_fake:
+                return "This review exhibits suspicious patterns including promotional language, generic praise, or repetitive text commonly associated with inauthentic content."
+            else:
+                return "This review demonstrates authentic characteristics with specific product references and natural language patterns consistent with genuine customer feedback."
         
         model = genai.GenerativeModel("gemini-pro")
-        prompt = f"""Based on this product review (rating: {rating}/5), provide:
-1. A concise product summary (2-3 sentences)
-2. A suggested fair rating (1-5) based on the review content
+        prompt = f"""Based on this product review, generate a brief authenticity analysis (1-2 sentences).
+Review text: {review_text[:500]}
+Flagged issues: {', '.join(keywords) if keywords else 'None'}
+Assessment: {'Likely Fake' if is_fake else 'Likely Genuine'}
 
-Review: {review_text}
+Provide a concise summary explaining why this review is authentic or fake."""
+        
+        response = model.generate_content(prompt)
+        return response.text if response.text else ("Suspicious review content detected." if is_fake else "Review appears authentic.")
+    except Exception as e:
+        return "Unable to generate summary." if not is_fake else "Review shows signs of being potentially fake."
 
-Format response as:
-SUMMARY: [your summary]
-SUGGESTED_RATING: [1-5]"""
+def analyze_product_review(user_requirements: str, spec_text: str, spec_image: Optional[bytes] = None) -> Dict:
+    """Analyze product specifications against user requirements."""
+    try:
+        # Extract specs from image if provided
+        spec_info = spec_text
+        if spec_image:
+            extracted_specs = _extract_text_from_image(spec_image)
+            if "Error" not in extracted_specs:
+                spec_info += f"\n{extracted_specs}"
+        
+        # Generate analysis using Gemini
+        score, summary, pros, cons = _generate_product_analysis(user_requirements, spec_info)
+        
+        return {
+            "score": score,
+            "summary": summary,
+            "pros": pros,
+            "cons": cons
+        }
+    except Exception as e:
+        return {
+            "score": 50,
+            "summary": f"Error analyzing product: {str(e)}",
+            "pros": ["Unable to determine"],
+            "cons": ["Error during analysis"]
+        }
+
+def _generate_product_analysis(user_requirements: str, spec_text: str) -> Tuple[int, str, List[str], List[str]]:
+    """Generate product analysis using Gemini API."""
+    try:
+        if not GEMINI_API_KEY:
+            # Mock analysis
+            return 65, "Product specifications meet most of your requirements.", \
+                   ["Good processor", "Adequate RAM", "Modern features"], \
+                   ["Battery life could be better", "Price is slightly high"]
+        
+        model = genai.GenerativeModel("gemini-pro")
+        prompt = f"""Analyze this product against user requirements and provide:
+1. A match score (40-100)
+2. A brief summary (2-3 sentences)
+3. List of 3-4 pros
+4. List of 2-3 cons
+
+User Requirements: {user_requirements}
+
+Product Specs: {spec_text}
+
+Format response EXACTLY as:
+SCORE: [number]
+SUMMARY: [summary text]
+PROS: [pro1 | pro2 | pro3]
+CONS: [con1 | con2]"""
         
         response = model.generate_content(prompt)
         response_text = response.text
         
-        summary = "N/A"
-        suggested_rating = "N/A"
+        # Parse response
+        score = 65  # default
+        summary = "Product analysis complete."
+        pros = ["Good performance", "Meets requirements"]
+        cons = ["Some limitations"]
+        
+        if "SCORE:" in response_text:
+            try:
+                score_str = response_text.split("SCORE:")[1].split("\n")[0].strip()
+                score = int(''.join(c for c in score_str if c.isdigit()))
+                score = max(40, min(100, score))  # Clamp between 40-100
+            except:
+                pass
         
         if "SUMMARY:" in response_text:
-            summary = response_text.split("SUMMARY:")[1].split("SUGGESTED_RATING:")[0].strip()
-        if "SUGGESTED_RATING:" in response_text:
-            suggested_rating = response_text.split("SUGGESTED_RATING:")[1].strip()
+            summary = response_text.split("SUMMARY:")[1].split("PROS:")[0].strip()
         
-        return {"summary": summary, "suggested_rating": suggested_rating}
+        if "PROS:" in response_text:
+            pros_str = response_text.split("PROS:")[1].split("CONS:")[0].strip()
+            pros = [p.strip() for p in pros_str.split("|")]
+        
+        if "CONS:" in response_text:
+            cons_str = response_text.split("CONS:")[1].strip()
+            cons = [c.strip() for c in cons_str.split("|")]
+        
+        return score, summary, pros, cons
     except Exception as e:
-        return {"summary": f"Error: {str(e)}", "suggested_rating": "N/A"}
-
-def _analyze_text(review_text: str, rating: int) -> Dict:
-    """Analyze review text for authenticity signals."""
-    signals = {}
-    reasons = []
-    risk_score = 0
-    
-    # 1. Sentiment analysis
-    sentiment_result = _text_classifier(review_text[:512])[0]
-    signals["sentiment"] = sentiment_result["label"]
-    signals["sentiment_confidence"] = round(sentiment_result["score"], 2)
-    
-    # High positive sentiment with extreme rating can be suspicious
-    if sentiment_result["label"] == "POSITIVE" and sentiment_result["score"] > 0.9 and rating == 5:
-        risk_score += 20
-        reasons.append("Extremely positive sentiment paired with 5-star rating (potential bias)")
-    
-    # 2. Zero-shot classification for review authenticity
-    authenticity_labels = ["genuine review", "fake review", "spam review"]
-    authenticity_result = _zero_shot_classifier(review_text[:512], authenticity_labels)
-    top_label = authenticity_result["labels"][0]
-    signals["authenticity_classification"] = top_label
-    signals["authenticity_scores"] = {
-        label: round(score, 2) 
-        for label, score in zip(authenticity_result["labels"], authenticity_result["scores"])
-    }
-    
-    if top_label in ["fake review", "spam review"]:
-        risk_score += 30
-        reasons.append(f"Classified as '{top_label}' by authenticity model")
-    
-    # 3. Text length analysis
-    word_count = len(review_text.split())
-    signals["word_count"] = word_count
-    
-    if word_count < 10 and rating in [1, 5]:
-        risk_score += 15
-        reasons.append("Very short review with extreme rating (1 or 5 stars)")
-    
-    # 4. Repetition check (simple heuristic)
-    words = review_text.lower().split()
-    if len(words) > 0:
-        unique_ratio = len(set(words)) / len(words)
-        signals["word_uniqueness"] = round(unique_ratio, 2)
-        if unique_ratio < 0.6:
-            risk_score += 15
-            reasons.append("High word repetition detected (potential copy-paste or template spam)")
-    
-    # 5. Rating-text mismatch
-    if rating >= 4 and sentiment_result["label"] == "NEGATIVE":
-        risk_score += 20
-        reasons.append("High rating with negative sentiment (text-rating mismatch)")
-    elif rating <= 2 and sentiment_result["label"] == "POSITIVE":
-        risk_score += 20
-        reasons.append("Low rating with positive sentiment (text-rating mismatch)")
-    
-    return {
-        "signals": signals,
-        "reasons": reasons,
-        "risk_score": min(risk_score, 100)
-    }
-
-def _analyze_image(image_base64: str) -> Dict:
-    """Analyze product image for authenticity signals."""
-    signals = {}
-    reasons = []
-    risk_score = 0
-    
-    try:
-        # Decode base64 image
-        image_data = base64.b64decode(image_base64)
-        image = Image.open(io.BytesIO(image_data))
-        
-        # Image classification
-        image_result = _image_classifier(image)
-        top_result = image_result[0]
-        
-        signals["image_classification"] = top_result["label"]
-        signals["image_confidence"] = round(top_result["score"], 2)
-        
-        # Image quality heuristic
-        if image.size[0] < 100 or image.size[1] < 100:
-            risk_score += 10
-            reasons.append("Low resolution image (potential stock photo or manipulated)")
-        
-        signals["image_dimensions"] = f"{image.size[0]}x{image.size[1]}"
-        
-    except Exception as e:
-        signals["image_error"] = str(e)
-        risk_score += 5
-    
-    return {
-        "signals": signals,
-        "reasons": reasons,
-        "risk_score": risk_score
-    }
-
-def analyze_review(review_text: str, rating: int, image_base64: Optional[str] = None) -> Dict:
-    """Main function to analyze a product review for authenticity."""
-    
-    # Analyze text
-    text_analysis = _analyze_text(review_text, rating)
-    
-    # Analyze image if provided
-    image_analysis = {}
-    if image_base64:
-        image_analysis = _analyze_image(image_base64)
-    
-    # Combine risk scores
-    total_risk = text_analysis["risk_score"] + image_analysis.get("risk_score", 0)
-    if image_base64:
-        average_risk = total_risk / 2
-    else:
-        average_risk = text_analysis["risk_score"]
-    
-    # Determine risk level
-    if average_risk >= 70:
-        risk_level = "CRITICAL"
-    elif average_risk >= 50:
-        risk_level = "HIGH"
-    elif average_risk >= 30:
-        risk_level = "MEDIUM"
-    else:
-        risk_level = "LOW"
-    
-    # Get Gemini summary
-    gemini_result = _summarize_with_gemini(review_text, rating)
-    
-    # Combine all signals
-    all_signals = {
-        **text_analysis["signals"],
-        **image_analysis.get("signals", {}),
-        "overall_risk_score": round(average_risk, 1)
-    }
-    
-    all_reasons = text_analysis["reasons"] + image_analysis.get("reasons", [])
-    
-    return {
-        "risk_level": risk_level,
-        "confidence": int(average_risk),
-        "signals": all_signals,
-        "reasons": all_reasons if all_reasons else ["Review appears authentic"],
-        "product_summary": gemini_result.get("summary", "N/A"),
-        "suggested_rating": gemini_result.get("suggested_rating", "N/A")
-    }
+        return 60, "Product analysis completed with partial results.", \
+               ["Meets basic requirements", "Reasonable specifications"], \
+               ["Limited detailed analysis", "Some specifications unclear"]

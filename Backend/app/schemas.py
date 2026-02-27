@@ -1,15 +1,17 @@
 from typing import Optional, List, Dict
 from pydantic import BaseModel
 
-class ReviewRequest(BaseModel):
-    review_text: str
-    rating: int
-    image: Optional[str] = None  # base64 image (optional)
+# Review Authenticator Response
+class AuthenticatorResponse(BaseModel):
+    trustScore: int
+    verdict: str
+    isFake: bool
+    summary: str
+    flaggedKeywords: List[str]
 
-class AnalysisResponse(BaseModel):
-    risk_level: str
-    confidence: int
-    signals: Dict[str, object]
-    reasons: List[str]
-    product_summary: Optional[str] = None
-    suggested_rating: Optional[str] = None
+# Product Reviewer Response
+class ReviewerResponse(BaseModel):
+    score: int
+    summary: str
+    pros: List[str]
+    cons: List[str]

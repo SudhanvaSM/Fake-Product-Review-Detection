@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReviewShield — AI-Powered Product Review Analysis</title>
+  <meta name="description"
+    content="Detect fake reviews and analyze product feedback instantly using AI. ReviewShield helps you verify review authenticity with cutting-edge technology." />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <a href="index.html" class="navbar-brand">
+      <span class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2L3 7v6c0 5.25 3.83 10.13 9 11.28C17.17 23.13 21 18.25 21 13V7l-9-5z" />
+        </svg>
+      </span>
+      <span class="brand-text-gradient">ReviewShield</span>
+    </a>
+    <div class="navbar-actions">
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+        <span class="toggle-thumb">
+          <svg class="icon-moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        </span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Page Wrapper -->
+  <div class="page-wrapper">
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+      <span class="hero-badge">
+        <span class="pulse-dot"></span>
+        AI-Powered Analysis
+      </span>
+
+      <h1 class="hero-title">
+        AI-Powered Product<br /><span class="highlight">Review Analysis</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        Detect fake reviews and analyze product feedback instantly using AI.
+      </p>
+
+      <!-- Cards -->
+      <div class="cards-grid">
+
+        <!-- Card 1: Product Review Authenticator -->
+        <a href="authenticator.html" class="card-button" id="card-authenticator">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2L3 7v6c0 5.25 3.83 10.13 9 11.28C17.17 23.13 21 18.25 21 13V7l-9-5z" />
+              <polyline points="9 12 11 14 15 10" />
+            </svg>
+          </div>
+          <h2 class="card-title">Product Review Authenticator</h2>
+          <p class="card-desc">Upload a review image or text to check its authenticity.</p>
+          <span class="card-arrow">
+            <svg viewBox="0 0 24 24">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </span>
+        </a>
+
+        <!-- Card 2: Product Reviewer -->
+        <a href="reviewer.html" class="card-button" id="card-reviewer">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              <line x1="9" y1="9" x2="15" y2="9" />
+              <line x1="9" y1="13" x2="13" y2="13" />
+            </svg>
+          </div>
+          <h2 class="card-title">Product Reviewer</h2>
+          <p class="card-desc">Generate and analyze product reviews using AI insights.</p>
+          <span class="card-arrow">
+            <svg viewBox="0 0 24 24">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </span>
+        </a>
+
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      &copy; 2026 ReviewShield. AI-powered review analysis.
+    </footer>
+
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+
+</html>
